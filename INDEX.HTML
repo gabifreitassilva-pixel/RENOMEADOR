@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gerenciador de Entradas - PRO</title>
+    <style>
+        :root {
+            --orange: #ff8c00;
+            --orange-hover: #e67e00;
+            --dark-bg: #0a0a0a;
+            --surface: #1a1a1a;
+            --surface-light: #2a2a2a;
+            --text: #e0e0e0;
+            --text-muted: #888;
+        }
+
+        body { 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+            background-color: var(--dark-bg); 
+            color: var(--text);
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+        }
+
+        .container { 
+            max-width: 900px; 
+            width: 100%;
+            background: var(--surface); 
+            padding: 30px; 
+            border-radius: 12px; 
+            border: 1px solid #333;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.8); 
+        }
+
+        h2 { 
+            color: var(--orange); 
+            border-bottom: 2px solid var(--orange); 
+            padding-bottom: 10px; 
+            margin-top: 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .status-badge {
+            font-size: 14px;
+            background: var(--surface-light);
+            padding: 5px 12px;
+            border-radius: 20px;
+            color: var(--text);
+            border: 1px solid #444;
+        }
+
+        .status-badge span { color: var(--orange); font-weight: bold; }
+
+        p { color: var(--text-muted); font-size: 14px; }
+
+        textarea { 
+            width: 100%; 
+            height: 100px; 
+            background: var(--dark-bg);
+            color: var(--orange);
+            border: 1px solid #444;
+            padding: 15px;
+            border-radius: 8px;
+            font-family: monospace;
+            resize: vertical;
+            box-sizing: border-box;
+        }
+
+        textarea:focus {
+            outline: none;
+            border-color: var(--orange);
+        }
+
+        .btn-group {
+            display: flex;
+            gap: 10px;
+            margin-top: 10px;
+        }
+
+        button {
+            background: var(--orange);
+            color: black;
+            border: none;
+            padding: 12px 24px;
+            font-weight: bold;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: 0.2s;
+            text-transform: uppercase;
+            font-size: 12px;
+            letter-spacing: 1px;
+        }
+
+        button:hover { background: var(--orange-hover); transform: translateY(-2px); }
+        
+        button.danger { background: #e74c3c; color: white; }
+        button.danger:hover { background: #c0392b; }
+
+        .drop-zone { 
+            border: 2px dashed var(--orange); 
+            padding: 50px; 
+            text-align: center; 
+            cursor: pointer; 
+            margin: 20px 0;
+            border-radius: 8px;
+            background: rgba(255, 140, 0, 0.05);
+            transition: 0.3s;
+            font-size: 18px;
+            font-weight: bold;
+        }
+
+        .drop-zone:hover { background: rgba(255, 140, 0, 0.15); border-width: 3px; }
+
+        .log-area {
+            max-height: 400px;
+            overflow-y: auto;
+            background: var(--dark-bg);
+            border-radius: 8px;
+            padding: 10px;
+            border: 1px solid #333;
+        }
+
+        .log-item {
+            padding: 12px;
+            margin: 5px 0;
+            border-radius: 4px;
+            border-left: 4px solid;
+            font-size: 14px;
+            animation: fadeIn 0.3s ease-in-out;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateX(-10px); }
+            to { opacity: 1; transform: translateX(0); }
+        }
+
+        .success { background: #122215; border-color: #2ecc71; color: #a8e6cf; }
+        .error { background: #2c1111; border-color: #e74c3c; color: #ffb3b3; }
+        .warning { background: #292011; border-color: var(--orange); color: #ffe6a0; }
+        .info { background: #111e2c; border-color: #3498db; color: #a0d2ff; }
+
+        code { color: var(--orange); background: var(--dark-bg); padding: 2px 5px; border-radius: 4px;}
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h2>
+        🟠 Banco de Dados de Clientes
+        <div class="status-badge">Cadastrados na Memória: <span id="contadorClientes">0</span></div>
+    </h2>
+    
+    <p>Copie e cole as linhas do seu sistema/planilha aqui. O sistema pegará o <b>Apelido</b> (1ª coluna) e o <b>Código</b> (última coluna).</p>
+    
+    <textarea id="listaClientes" placeholder="Cole os dados copiados da tabela aqui..."></textarea>
+    
+    <div class="btn-group">
+        <button onclick="processarESalvarLista()">Gravar Novos Clientes</button>
+        <button onclick="limparMemoria()" class="danger">Zerar Memória</button>
+    </div>
+
+    <br><br><br>
+    
+    <h2>📂 Renomeador em Massa</h2>
+    <p>Arraste os arquivos PDF com o formato original (Ex: <code>Entradas_9991_032026.pdf</code>) para o quadro abaixo.</p>
+    
+    <div class="drop-zone" id="dropZone">
+        ⬇️ Arraste os PDFs aqui ou clique para selecionar ⬇️
+        <input type="file" id="fileInput" accept=".pdf" multiple style="display: none;">
+    </div>
+
+    <div class="log-area" id="logArea"></div>
+</div>
+
+<script>
+    // --- LÓGICA DE MEMÓRIA (BANCO DE DADOS LOCAL) ---
+
+    // Atualiza o número de clientes cadastrados na tela ao carregar a página
+    window.onload = atualizarContador;
+
+    function getDb() {
+        return JSON.parse(localStorage.getItem('clientesDb') || '{}');
+    }
+
+    function atualizarContador() {
+        const db = getDb();
+        const count = Object.keys(db).length;
+        document.getElementById('contadorClientes').innerText = count;
+    }
+
+    function processarESalvarLista() {
+        const text = document.getElementById('listaClientes').value;
+        if (!text.trim()) {
+            addLog("Nenhum dado colado na caixa de texto.", "warning");
+            return;
+        }
+
+        const linhas = text.split('\n');
+        let db = getDb(); // Puxa os que já existem
+        let countAdicionados = 0;
+
+        linhas.forEach(linha => {
+            let txt = linha.trim();
+            if (!txt) return;
+
+            // Ignora o cabeçalho se o usuário copiar junto
+            if (txt.toLowerCase().includes("apelido") && txt.toLowerCase().includes("código")) {
+                return;
+            }
+
+            // Super filtro: Divide por TAB, ou Ponto e Vírgula, ou 2+ espaços em branco seguidos.
+            // Isso cobre quase todos os formatos de tabelas copiadas do Windows.
+            let colunas = txt.split(/\t|;|\s{2,}/).map(c => c.trim()).filter(c => c !== '');
+
+            // Fallback para caso extremo: copiou apenas com 1 espaço entre tudo.
+            if (colunas.length < 2) {
+                const parts = txt.split(' ');
+                if (parts.length >= 2) {
+                    const ultimo = parts.pop();
+                    // Se a última palavra da linha for só números, assume que é o código.
+                    if (/^\d+$/.test(ultimo)) {
+                        colunas = [parts.join(' '), ultimo];
+                    }
+                }
+            }
+
+            if (colunas.length >= 2) {
+                const apelido = colunas[0];
+                // Pega a última coluna e remove qualquer caractere invisível ou letras
+                const codigoBruto = colunas[colunas.length - 1];
+                const codigo = codigoBruto.replace(/\D/g, ''); 
+
+                // Só salva se extraiu um código válido e existe um apelido
+                if (codigo && codigo.length > 0 && apelido !== "") {
+                    db[codigo] = apelido;
+                    countAdicionados++;
+                }
+            }
+        });
+
+        // Salva no navegador e limpa o campo
+        localStorage.setItem('clientesDb', JSON.stringify(db));
+        document.getElementById('listaClientes').value = '';
+        atualizarContador();
+        
+        if (countAdicionados > 0) {
+            addLog(`✅ ${countAdicionados} clientes foram atualizados/adicionados na memória com sucesso!`, 'info');
+        } else {
+            addLog(`⚠️ Nenhum cliente válido encontrado. Tente copiar e colar novamente.`, 'error');
+        }
+    }
+
+    function limparMemoria() {
+        if(confirm("Tem certeza que deseja apagar todos os clientes da memória?")) {
+            localStorage.removeItem('clientesDb');
+            atualizarContador();
+            addLog("🗑️ Memória apagada com sucesso.", "info");
+        }
+    }
+
+
+    // --- LÓGICA DE ARRASTAR, SOLTAR E RENOMEAR ---
+
+    const fileInput = document.getElementById('fileInput');
+    const dropZone = document.getElementById('dropZone');
+    const logArea = document.getElementById('logArea');
+
+    dropZone.onclick = () => fileInput.click();
+    fileInput.onchange = e => handleFiles(e.target.files);
+    
+    dropZone.ondragover = e => { 
+        e.preventDefault(); 
+        dropZone.style.background = "rgba(255,140,0,0.2)"; 
+        dropZone.style.borderColor = "#ffaa44";
+    };
+    dropZone.ondragleave = () => {
+        dropZone.style.background = "rgba(255, 140, 0, 0.05)"; 
+        dropZone.style.borderColor = "var(--orange)";
+    };
+    dropZone.ondrop = e => {
+        e.preventDefault();
+        dropZone.style.background = "rgba(255, 140, 0, 0.05)";
+        dropZone.style.borderColor = "var(--orange)";
+        handleFiles(e.dataTransfer.files);
+    };
+
+    function handleFiles(files) {
+        const db = getDb(); // Pega a lista salva no computador
+
+        for (let file of files) {
+            if (file.type !== "application/pdf") {
+                addLog(`Ignorado: ${file.name} (Não é PDF)`, 'warning');
+                continue;
+            }
+
+            // Tenta achar o padrão Entradas_9991_032026.pdf (capturando o código e o mês/ano)
+            // match[1] será o código e match[2] será o mês/ano (032026)
+            const match = file.name.match(/Entradas_(\d+)_(\d+)/i);
+            
+            if (match) {
+                const codigo = match[1];
+                const periodo = match[2];
+                const apelidoCliente = db[codigo];
+
+                if (apelidoCliente) {
+                    const novoNome = `Entradas ${codigo} ${apelidoCliente} ${periodo}.pdf`;
+                    downloadFileFast(file, novoNome);
+                    addLog(`Renomeado: ${file.name} ➔ <b>${novoNome}</b>`, 'success');
+                } else {
+                    addLog(`Erro: Código <b>${codigo}</b> não está cadastrado na memória! Arquivo: ${file.name}`, 'error');
+                }
+            } else {
+                addLog(`Aviso: O arquivo <b>${file.name}</b> não possui o formato 'Entradas_CODIGO_MESANO' esperado.`, 'warning');
+            }
+        }
+    }
+
+    // Método ultra-rápido modificado: 
+    // Transforma o arquivo em "octet-stream" para forçar o download e impedir o navegador de abrir a aba do PDF.
+    function downloadFileFast(originalFile, novoNome) {
+        const blob = new Blob([originalFile], { type: 'application/octet-stream' });
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.style.display = 'none';
+        a.href = url;
+        a.download = novoNome;
+        document.body.appendChild(a);
+        a.click();
+        
+        // Limpeza de memória
+        setTimeout(() => {
+            window.URL.revokeObjectURL(url);
+            document.body.removeChild(a);
+        }, 100);
+    }
+
+    function addLog(msg, type) {
+        const div = document.createElement('div');
+        div.className = `log-item ${type}`;
+        div.innerHTML = msg;
+        logArea.prepend(div); // Coloca as mensagens mais novas no topo
+    }
+</script>
+
+</body>
+</html>
